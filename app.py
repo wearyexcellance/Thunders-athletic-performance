@@ -5,6 +5,7 @@ Created on Thu Oct 28 19:19:44 2021
 """
 import time
 from playsound import playsound
+import csv
 import numpy as np
 import cv2
 from flask import Flask, render_template, Response, request
@@ -20,6 +21,12 @@ app = Flask(__name__)
 def index():
     """Video streaming home page."""
     return render_template('index.html')
+
+
+
+def diff(v1,v2):
+    result = ( (v1-v2)/(v1+v2)/2)*100
+    return abs(result)
 
 def calculate_angle(a,b,c):
     a = np.array(a) # First
@@ -61,12 +68,22 @@ def gen(exercice):
         # converting image to RGB from BGR cuz mediapipe only work on RGB
         imgRGB = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         result = pose.process(imgRGB)
-        # print(result.pose_landmarks)
+        
         if result.pose_landmarks:
             mpDraw.draw_landmarks(img, result.pose_landmarks, my_pose.POSE_CONNECTIONS)
             
             if result.pose_landmarks:
                 landmarks = result.pose_landmarks.landmark
+                #nose = (landmarks[0]) #array for nose
+                #left_eye_inner = (landmarks[1])
+                
+                #e= np.array(landmarks)
+                #print(e)
+                #with open('readme.txt', 'w') as f:
+                # f.write(str(e) + str(""))
+                #print(keypoints)
+                #upper_body_cords_header = [landmarks[11],landmarks[13]]
+                #print(upper_body_cords_header)
                 try:
                     shoulder = [landmarks[md_pose.PoseLandmark.LEFT_SHOULDER.value].x,landmarks[md_pose.PoseLandmark.LEFT_SHOULDER.value].y]
                     elbow = [landmarks[md_pose.PoseLandmark.LEFT_ELBOW.value].x,landmarks[md_pose.PoseLandmark.LEFT_ELBOW.value].y]
@@ -80,47 +97,34 @@ def gen(exercice):
                     knee = [landmarks[md_pose.PoseLandmark.LEFT_KNEE.value].x,landmarks[md_pose.PoseLandmark.LEFT_KNEE.value].y]
                     ankle = [landmarks[md_pose.PoseLandmark.LEFT_ANKLE.value].x,landmarks[md_pose.PoseLandmark.LEFT_ANKLE.value].y]
                     legs_angle = calculate_angle(hip,knee,ankle)
+                    angle_knee = calculate_angle(hip, knee, ankle) #Knee joint angle
 
                     angle = calculate_angle(shoulder, elbow, wrist)
                 
                      
-                    lmList = []
-                    for id,im in enumerate(result.pose_landmarks.landmark):
-                        h,w,_= frame.shape
-                        X = int(im.x*w)
-                        Y = int(im.y*h)
-                        print(len(lmList))
-                        lmList.append([id,X,Y])
-                        if len(lmList) !=0:
-                            oh = (lmList[12][2])
-                            print(oh)
-                            #print(lmList[12][2])
-                            '''
-                            if ((lmList[12][2] - lmList[14][2])>=15 and (lmList[11][2] - lmList[13][2])>=15):
-                                position = "down"
-                            if ((lmList[12][2] - lmList[14][2])<=5 and (lmList[11][2] - lmList[13][2])<=5) and position == "down":
-                                position = "up"
-                                count +=1 
-                                print(count)
-                            '''
                 except:
                     pass
-                #print(str('GENOTIV')  + str(bp_coordinates(landmarks,md_pose.PoseLandmark.LEFT_WRIST.value)))
-                #array_shoulder_l  = (bp_coordinates(landmarks,md_pose.PoseLandmark.LEFT_SHOULDER.value))
-                #array_forearm_l   = (bp_coordinates(landmarks,md_pose.PoseLandmark.LEFT_ELBOW.value))
-                #array_wrist_l  = (bp_coordinates(landmarks,md_pose.PoseLandmark.LEFT_WRIST.value))
-                # Curl counter logic
                 workout = exercice
                 if workout == "squats": 
-                    if (legs_angle > 160):
-                        stage = "down"
-                    if (legs_angle < 90 and stage =='down'):
-                        stage="up"
-                        counter +=1
-                        playsound('sound.mp3',block=False)
-                        print(counter)
+               # Curl counter logic
+                  if angle_knee > 169:
+                     stage = "up"
+                  if angle_knee <= 90 and stage =='up':
+                     stage="down"
+                     counter +=1
+                     playsound('sound.mp3',block=False)
+
+                     print(counter)
                 else:
                     if workout == "pushups":
+                            if (angle > 160 and angler > 160):
+                                stage = "down"
+                            if (angle < 90 and stage =='down'and angler < 90):
+                                stage="up"
+                                counter +=1
+                                playsound('sound.mp3',block=False)
+                                print(counter)
+                    if workout == "mma":
                             if (angle > 160 and angler > 160):
                                 stage = "down"
                             if (angle < 50 and stage =='down'and angler < 90):
@@ -183,16 +187,24 @@ def squats():
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 
+@app.route('/video_feed_mma',methods=['GET', 'POST'])
+def mma():
+    if request.method == 'POST':
+        # Then get the data from the form
+        tag = request.form['tag']
+        print(tag)
+
+        # Get the username/password associated with this tag
+        #user, password = tag_lookup(tag)
+    """Video streaming route. Put this in the src attribute of an img tag."""
+    return Response(gen("mma"),
+                    mimetype='multipart/x-mixed-replace; boundary=frame')
+
+
 
 
 
 
 if __name__=="__main__":
     app.run(debug=True)
-
-
-
-
-
-
 
